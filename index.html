@@ -134,6 +134,23 @@ header h1{font-size:21px;margin:0;font-weight:800}
 #toast .tp{position:absolute;bottom:0;inset-inline:0;height:3px;background:var(--tc);transform-origin:right;transform:scaleX(0)}
 #toast.show .tp{animation:tp 2.8s linear forwards}@keyframes tp{from{transform:scaleX(1)}to{transform:scaleX(0)}}
 .cp.del{color:#ff9a8f;background:rgba(255,90,74,.12);border-color:rgba(255,90,74,.35)}
+.ipf{gap:4px;padding:7px;border-radius:20px;background:rgba(3,10,31,.55);border:1px solid var(--line)}
+.ipf input{height:58px;padding:0;border-radius:14px;font-size:clamp(19px,6.4vw,26px);letter-spacing:1px;background:linear-gradient(#0a1c47,#071436);border:1px solid rgba(120,175,255,.28);box-shadow:inset 0 2px 6px rgba(0,0,0,.35);caret-color:var(--cyan)}
+.ipf i{flex:none;font-size:30px;line-height:1;align-self:flex-end;padding-bottom:12px;text-shadow:0 0 8px var(--cyan)}
+.g2:has(.ipf){grid-template-columns:1fr}
+.lh{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.lh h3{margin:0}
+.selbtn{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:30px;background:rgba(60,130,255,.14);border:1px solid var(--line);font-weight:700;font-size:14px}.selbtn .i{width:17px;height:17px}.selbtn.on{background:var(--blue);border-color:transparent}
+.srch{display:flex;align-items:center;gap:10px;padding:0 14px;height:52px;border-radius:16px;background:rgba(3,10,31,.6);border:1px solid var(--line);margin-bottom:12px;color:var(--mut)}
+.srch:focus-within{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(63,220,255,.16)}
+.srch input{flex:1;min-width:0;background:none;border:0;outline:0;font-size:16px;color:var(--txt)}
+.gchips{display:flex;gap:8px;overflow-x:auto;margin-bottom:12px;scrollbar-width:none}.gchips:empty{display:none}.gchips::-webkit-scrollbar{display:none}
+.gc{flex:none;padding:9px 15px;border-radius:30px;background:rgba(60,130,255,.12);border:1px solid var(--line);font-weight:700;font-size:15px}.gc small{opacity:.7;margin-inline-start:6px}.gc.on{background:linear-gradient(135deg,#3b9bff,#1b63e8);border-color:transparent}
+.tag.g{background:rgba(63,220,255,.14);color:var(--cyan);border-color:var(--cyan)}
+.selbar{position:sticky;top:8px;z-index:5;display:flex;gap:6px;align-items:center;padding:8px 10px;border-radius:18px;background:#0d2a66;border:1px solid var(--cyan);box-shadow:0 8px 30px rgba(0,0,0,.5);margin-bottom:10px}
+.selbar b{flex:1;font-size:15px;white-space:nowrap}.selbar .btn{flex:none;padding:10px 12px;font-size:14px}
+.item{user-select:none;-webkit-user-select:none}
+.item .sel{width:30px;height:30px;border-radius:50%;border:2px solid var(--line);flex:none;display:grid;place-items:center;margin:6px}.item .sel .i{width:16px;height:16px;opacity:0}
+.item.picked{border-color:var(--cyan);background:rgba(63,220,255,.13)}.item.picked .sel{background:var(--cyan);border-color:var(--cyan);color:#04132e}.item.picked .sel .i{opacity:1}
 </style>
 </head>
 <body>
@@ -153,6 +170,9 @@ header h1{font-size:21px;margin:0;font-weight:800}
 <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
 <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
 <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17.5v.01"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-group" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></symbol>
 </defs></svg>
 <div id="upd"><svg class="i "><use href="#i-sync"/></svg><span>تحديث جديد جاهز</span><button id="updGo">حدّث الآن</button></div>
 <div class="app">
@@ -213,7 +233,10 @@ header h1{font-size:21px;margin:0;font-weight:800}
   </section>
 
   <section id="list" class="card list" hidden>
-    <h3>سجل التوزيع</h3>
+    <div class="lh"><h3>سجل التوزيع</h3><button class="selbtn" id="selMode"><svg class="i"><use href="#i-check"/></svg>تحديد</button></div>
+    <div class="srch"><svg class="i"><use href="#i-search"/></svg><input id="q" placeholder="ابحث بالـ IP أو الاسم في كل الرنجات" inputmode="search" autocomplete="off"><button id="qx" hidden><svg class="i"><use href="#i-x"/></svg></button></div>
+    <div class="gchips" id="gchips"></div><div class="row" id="gact" style="margin:0 0 12px"></div>
+    <div class="selbar" id="selbar" hidden><b>تحديد <span id="selN">0</span></b><button class="btn" id="selAll">الكل</button><button class="btn" id="selCopy"><svg class="i"><use href="#i-copy"/></svg></button><button class="btn pri" id="selGroup"><svg class="i"><use href="#i-group"/></svg>جروب</button><button class="btn" id="selCancel"><svg class="i"><use href="#i-x"/></svg></button></div>
     <div id="items"></div>
   </section>
 </div>
@@ -237,7 +260,7 @@ const totalOf = r => { const k = r.s + '-' + r.e; if (totalCache[k] != null) ret
 const usedOf = r => Object.keys(r.a || {}).length;
 const uid = () => 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 
-const DEFAULT_DB = 'https://ip-manager-18f8c-default-rtdb.europe-west1.firebasedatabase.app', APP_V = '2.3';
+const DEFAULT_DB = 'https://ip-manager-18f8c-default-rtdb.europe-west1.firebasedatabase.app', APP_V = '2.4';
 const I = n => `<svg class="i"><use href="#i-${n}"/></svg>`;
 let settings = Object.assign({ name: '', team: 'default', db: DEFAULT_DB, localOnly: false, sound: true, vibrate: true, copy: true }, LS('ipm.settings') || {});
 if (!settings.db && !settings.localOnly) settings.db = DEFAULT_DB;
@@ -359,7 +382,7 @@ function detectRemote(oldR, newR) {
     }
   }
 }
-let flashNew = [];
+let flashNew = [], q = '', gF = '', selMode = false, pickR = null; const picked = new Set();
 
 /* ========= state / render ========= */
 let selId = LS('ipm.sel'), lastGot = {}, busy = false;
@@ -405,11 +428,22 @@ function render() {
   $('#got').hidden = !g;
   if (g) $('#gotIp').textContent = g;
   // list
-  const keys = Object.keys(r.a || {}).map(Number).sort((a, b) => b - a).slice(0, 60);
-  $('#items').innerHTML = keys.length ? keys.map(k => {
-    const a = r.a[k], tm = a.t ? new Date(a.t).toLocaleString('ar-EG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
-    return `<div class="item ${flashNew.includes(k) ? 'new' : ''}"><span class="av">${esc((a.b || a.n || '?')[0])}</span><div class="ipc"><span class="ip mono">${int2ip(k)}</span><span class="nm">${a.m ? '<em class="tag">محجوز</em>' : ''}${esc(a.n) || '—'}</span><small>${esc(a.b || '')}${a.b ? ' · ' : ''}${tm}</small></div><button class="cp" data-cp="${int2ip(k)}">${I('copy')}</button><button class="cp del" data-del="${k}">${I('trash')}</button></div>`;
-  }).join('') : '<div class="empty" style="padding:14px">لسه مفيش توزيع</div>';
+  if (pickR !== r.id) { picked.clear(); pickR = r.id; }
+  const qq = q.trim().toLowerCase(), mk = (rr, k) => ({ k, a: rr.a[k], r: rr });
+  let ents = [];
+  if (qq) { sorted().forEach(rr => Object.keys(rr.a || {}).forEach(k => { const a = rr.a[k]; if ((int2ip(+k) + ' ' + (a.n || '') + ' ' + (a.b || '') + ' ' + (a.g || '') + ' ' + rr.n).toLowerCase().includes(qq)) ents.push(mk(rr, +k)); })); ents.sort((x, y) => (y.a.t || 0) - (x.a.t || 0)); }
+  else ents = Object.keys(r.a || {}).map(Number).sort((a, b) => b - a).map(k => mk(r, k));
+  const groups = {}; Object.values(r.a || {}).forEach(a => { if (a.g) groups[a.g] = (groups[a.g] || 0) + 1; });
+  if (gF && !groups[gF]) gF = '';
+  if (!qq && gF) ents = ents.filter(e => e.a.g === gF); else if (!qq) ents = ents.slice(0, 80);
+  const gn = Object.keys(groups);
+  $('#gchips').innerHTML = !qq && gn.length ? `<button class="gc ${gF ? '' : 'on'}" data-g="">الكل<small>${Object.keys(r.a || {}).length}</small></button>` + gn.map(g => `<button class="gc ${gF === g ? 'on' : ''}" data-g="${esc(g)}">${esc(g)}<small>${groups[g]}</small></button>`).join('') : '';
+  $('#gact').innerHTML = !qq && gF ? `<button class="btn" id="gCopy">${I('copy')}نسخ IPs الجروب</button><button class="btn" id="gDel">فك الجروب</button>` : '';
+  $('#qx').hidden = !q; $('#selMode').classList.toggle('on', selMode); $('#selbar').hidden = !selMode; $('#selN').textContent = picked.size;
+  $('#items').innerHTML = ents.length ? ents.map(({ k, a, r: rr }) => {
+    const tm = a.t ? new Date(a.t).toLocaleString('ar-EG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '', pk = selMode && rr === r && picked.has(k);
+    return `<div class="item ${flashNew.includes(k) ? 'new' : ''} ${pk ? 'picked' : ''}" data-k="${k}" data-r="${rr.id}">${selMode ? `<span class="sel">${I('check')}</span>` : `<span class="av">${esc((a.b || a.n || '?')[0])}</span>`}<div class="ipc"><span class="ip mono">${int2ip(k)}</span><span class="nm">${a.m ? '<em class="tag">محجوز</em>' : ''}${a.g ? `<em class="tag g">${esc(a.g)}</em>` : ''}${esc(a.n) || '—'}</span><small>${esc(a.b || '')}${a.b ? ' · ' : ''}${tm}${qq ? ' · ' + esc(rr.n) : ''}</small></div>${selMode ? '' : `<button class="cp" data-cp="${int2ip(k)}">${I('copy')}</button><button class="cp del" data-del="${k}">${I('trash')}</button>`}</div>`;
+  }).join('') : `<div class="empty" style="padding:14px">${qq ? 'مفيش نتايج' : 'لسه مفيش توزيع'}</div>`;
   flashNew = [];
   // sounds for state transitions caused by remote or local
   prevUsed = u; prevLevel = lvl; prevId = r.id;
@@ -573,6 +607,46 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
 
 /* install + service worker */
+
+/* ========= search / select / groups ========= */
+const exitSel = () => { selMode = false; picked.clear(); render(); };
+const ipsOf = r => [...picked].sort((a, b) => a - b).map(int2ip);
+$('#q').oninput = e => { q = e.target.value; render(); };
+$('#qx').onclick = () => { q = ''; $('#q').value = ''; render(); };
+$('#selMode').onclick = () => { selMode = !selMode; picked.clear(); render(); };
+$('#selCancel').onclick = exitSel;
+$('#selAll').onclick = () => { const v = [...document.querySelectorAll('#items .item')].filter(e => e.dataset.r === pickR).map(e => +e.dataset.k); if (picked.size >= v.length) picked.clear(); else v.forEach(k => picked.add(k)); render(); };
+$('#selCopy').onclick = async () => { if (picked.size && await copy(ipsOf().join('\n'))) toast('اتنسخ ' + picked.size + ' عنوان'); };
+$('#selGroup').onclick = () => groupSheet();
+let lp = 0, lpHit = false;
+$('#items').addEventListener('pointerdown', e => { const row = e.target.closest('.item'); if (!row || e.target.closest('button') || selMode) return; lp = setTimeout(() => { selMode = true; picked.clear(); if (row.dataset.r === pickR) picked.add(+row.dataset.k); lpHit = true; navigator.vibrate && navigator.vibrate(15); render(); }, 450); });
+['pointerup', 'pointercancel', 'pointerleave'].forEach(t => $('#items').addEventListener(t, () => clearTimeout(lp)));
+document.addEventListener('click', async e => {
+  const g = e.target.closest('#gchips .gc'); if (g) { gF = g.dataset.g; render(); return; }
+  const row = e.target.closest('#items .item');
+  if (row && !e.target.closest('button')) {
+    if (lpHit) { lpHit = false; return; }
+    if (selMode) { if (row.dataset.r !== pickR) return; const k = +row.dataset.k; picked.has(k) ? picked.delete(k) : picked.add(k); render(); }
+    else if (row.dataset.r !== pickR) { selId = row.dataset.r; LS('ipm.sel', selId); q = ''; $('#q').value = ''; render(); sfx.click(.1); }
+    return;
+  }
+  const r = cur(); if (!r) return;
+  if (e.target.closest('#gCopy')) { const l = Object.keys(r.a || {}).map(Number).filter(k => r.a[k].g === gF).sort((a, b) => a - b).map(int2ip); if (await copy(l.join('\n'))) toast('اتنسخ ' + l.length + ' عنوان من ' + gF); }
+  if (e.target.closest('#gDel')) { const name = gF; lastLocal = Date.now(); await Store.update(r.id, x => { Object.values(x.a || {}).forEach(a => { if (a.g === name) delete a.g; }); return x; }); gF = ''; render(); Store.log('فك الجروب ' + name); toast('اتفك الجروب ' + name); }
+});
+function groupSheet() {
+  const r = cur(); if (!r || !picked.size) return toast('اختار عناوين الأول', 'warn');
+  const gs = [...new Set(Object.values(r.a || {}).map(a => a.g).filter(Boolean))];
+  openSheet(`<h3>تجميع ${picked.size} عنوان</h3>` + (gs.length ? `<label>جروب موجود</label><div class="gchips" style="flex-wrap:wrap">${gs.map(g => `<button class="gc" data-pick="${esc(g)}">${esc(g)}</button>`).join('')}</div>` : '') + `<label>اسم الجروب</label><input class="f" id="gName" maxlength="30" autocomplete="off" placeholder="مثال: قسم المحاسبة"><div class="hint">سيب الاسم فاضي لو عاوز تشيلهم من أي جروب.</div><div class="row"><button class="btn" data-close>إلغاء</button><button class="btn pri" id="gOk">${I('group')}تطبيق</button></div>`);
+  sheet.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { $('#gName').value = b.dataset.pick; });
+  $('#gName').onkeydown = e => { if (e.key === 'Enter') $('#gOk').click(); };
+  $('#gOk').onclick = async () => {
+    const name = $('#gName').value.trim(), ks = [...picked]; let n = 0; closeSheet(); lastLocal = Date.now();
+    try { await Store.update(r.id, x => { n = 0; ks.forEach(k => { if (x.a && x.a[k]) { if (name) x.a[k].g = name; else delete x.a[k].g; n++; } }); return n ? x : undefined; }); }
+    catch (e) { return toast('حصل خطأ: ' + e.message, 'err'); }
+    selMode = false; picked.clear(); gF = name; render(); Store.log(name ? 'جمّع ' + n + ' عنوان في ' + name : 'شال ' + n + ' عنوان من الجروب'); toast(name ? n + ' عنوان في جروب ' + name : 'اتشالوا من الجروب');
+  };
+}
 
 /* ========= smart IP boxes ========= */
 function ipField(id, val) {
