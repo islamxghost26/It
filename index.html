@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IP Manager</title>
+<meta name="theme-color" content="#030a1f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+:root{
+  --bg:#030a1f; --bg2:#071533; --card:rgba(10,26,64,.62); --line:rgba(80,150,255,.22);
+  --txt:#e8f0ff; --mut:#8fa6cf; --blue:#2d8cff; --cyan:#38d6ff;
+  --c:#2d8cff; --glow:rgba(45,140,255,.55);
+  --ok:#2d8cff; --warn:#ffb020; --crit:#ff5a4a; --full:#22d3a0;
+  --r:22px;
+  font-family:"Segoe UI",Tahoma,"Noto Sans Arabic","Noto Naskh Arabic",system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--txt)}
+body{
+  background:
+    radial-gradient(900px 520px at 50% -10%,rgba(45,140,255,.28),transparent 65%),
+    radial-gradient(600px 400px at 100% 100%,rgba(56,214,255,.10),transparent 60%),
+    var(--bg);
+  background-attachment:fixed;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) calc(28px + env(safe-area-inset-bottom)) env(safe-area-inset-left);
+}
+.app{max-width:560px;margin:0 auto;padding:14px 16px}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;direction:ltr;unicode-bidi:isolate}
+
+/* header */
+header{display:flex;align-items:center;gap:10px;padding:6px 0 14px}
+header img{width:44px;height:44px;border-radius:12px;box-shadow:0 0 18px var(--glow)}
+header h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.2px}
+header .sub{font-size:12px;color:var(--mut);margin-top:2px;display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:#7b8bb0;display:inline-block}
+.dot.online{background:var(--full);box-shadow:0 0 8px var(--full)}
+.dot.connecting{background:var(--warn);animation:blink 1s infinite}
+.dot.offline,.dot.error{background:var(--crit)}
+.dot.local{background:var(--cyan)}
+@keyframes blink{50%{opacity:.3}}
+.sp{flex:1}
+.ico{width:40px;height:40px;border-radius:12px;background:rgba(45,140,255,.12);border:1px solid var(--line);display:grid;place-items:center;font-size:18px;transition:.15s}
+.ico:active{transform:scale(.92)}
+.ico.off{opacity:.5}
+
+/* chips */
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 12px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;min-width:118px;text-align:start;padding:10px 12px;border-radius:16px;background:var(--card);border:1px solid var(--line);transition:.2s;backdrop-filter:blur(8px)}
+.chip b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+.chip small{color:var(--mut);font-size:11px}
+.chip .bar{height:4px;border-radius:4px;background:rgba(255,255,255,.08);margin-top:7px;overflow:hidden}
+.chip .bar i{display:block;height:100%;background:var(--cc,var(--blue));border-radius:4px;transition:width .5s}
+.chip.sel{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan),0 0 22px rgba(56,214,255,.25)}
+.chip.add{min-width:56px;display:grid;place-items:center;font-size:24px;color:var(--cyan);border-style:dashed}
+
+/* cards */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;backdrop-filter:blur(10px);margin-bottom:14px}
+.card[hidden]{display:none}
+.rhead{display:flex;align-items:flex-start;gap:10px}
+.rhead h2{margin:0;font-size:20px}
+.span{color:var(--mut);font-size:13px;margin-top:4px}
+
+/* ring */
+.main[data-level=ok]{--c:var(--ok);--glow:rgba(45,140,255,.55)}
+.main[data-level=warn]{--c:var(--warn);--glow:rgba(255,176,32,.5)}
+.main[data-level=crit]{--c:var(--crit);--glow:rgba(255,90,74,.55)}
+.main[data-level=full]{--c:var(--full);--glow:rgba(34,211,160,.55)}
+.ringwrap{position:relative;width:min(300px,80vw);aspect-ratio:1;margin:8px auto 6px}
+.ringwrap svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.track{fill:none;stroke:rgba(120,160,255,.13);stroke-width:12}
+.ticks{fill:none;stroke:rgba(150,190,255,.25);stroke-width:5;stroke-dasharray:1.5 10.7;transform:rotate(-90deg);transform-origin:center}
+.prog{fill:none;stroke:var(--c);stroke-width:12;stroke-linecap:round;stroke-dasharray:741.4;stroke-dashoffset:741.4;
+  transition:stroke-dashoffset .7s cubic-bezier(.2,.8,.2,1),stroke .4s;filter:drop-shadow(0 0 7px var(--glow))}
+.main[data-level=crit] .prog{animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{filter:drop-shadow(0 0 16px var(--glow))}}
+.go{position:absolute;inset:11%;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  background:radial-gradient(circle at 50% 28%,#4aa4ff,#1b63e8 55%,#0f3ca8);
+  box-shadow:0 0 0 2px rgba(255,255,255,.12) inset,0 14px 40px var(--glow),0 0 70px var(--glow);
+  transition:transform .12s,box-shadow .3s,background .4s;overflow:hidden;color:#fff}
+.main[data-level=warn] .go{background:radial-gradient(circle at 50% 28%,#ffc95a,#e08a00 55%,#9a5b00)}
+.main[data-level=crit] .go{background:radial-gradient(circle at 50% 28%,#ff8a7a,#e23c2c 55%,#9a1d12)}
+.main[data-level=full] .go{background:radial-gradient(circle at 50% 28%,#4fe8bf,#13a67e 55%,#0a6b52)}
+.go:active:not(:disabled){transform:scale(.93)}
+.go:disabled{cursor:default}
+.go .l1{font-size:15px;opacity:.9}
+.go .l2{font-size:25px;font-weight:700;text-shadow:0 2px 10px rgba(0,0,0,.35)}
+.go .l3{font-size:12px;opacity:.75}
+.go .rip{position:absolute;border-radius:50%;background:rgba(255,255,255,.45);transform:scale(0);animation:rip .6s ease-out forwards;pointer-events:none}
+@keyframes rip{to{transform:scale(3.2);opacity:0}}
+#fx{position:absolute;inset:0;pointer-events:none}
+.plus{position:absolute;left:50%;top:38%;font-weight:800;font-size:26px;color:var(--cyan);text-shadow:0 0 12px var(--glow);animation:fly .9s ease-out forwards}
+@keyframes fly{from{transform:translate(-50%,0);opacity:1}to{transform:translate(-50%,-90px);opacity:0}}
+.pt{position:absolute;left:50%;top:50%;width:8px;height:8px;border-radius:50%;background:var(--c);animation:burst 1s ease-out forwards}
+@keyframes burst{to{transform:translate(var(--dx),var(--dy)) scale(.2);opacity:0}}
+.shake{animation:shake .4s}
+@keyframes shake{25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0 14px}
+.stat{background:rgba(45,140,255,.08);border:1px solid var(--line);border-radius:14px;padding:10px 6px;text-align:center}
+.stat b{display:block;font-size:22px;line-height:1.1}
+.stat small{color:var(--mut);font-size:12px}
+.bump{animation:bump .35s}
+@keyframes bump{40%{transform:scale(1.3);color:var(--cyan)}}
+.pctbar{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--mut);margin-bottom:14px}
+.pctbar .t{flex:1;height:8px;border-radius:8px;background:rgba(255,255,255,.08);overflow:hidden}
+.pctbar .t i{display:block;height:100%;width:0;background:var(--c);box-shadow:0 0 10px var(--glow);transition:width .6s}
+.badge{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;background:rgba(45,140,255,.15);color:var(--c);border:1px solid var(--c)}
+
+input.f,.f{width:100%;background:rgba(3,10,31,.6);border:1px solid var(--line);border-radius:14px;padding:13px 14px;font-size:15px;outline:none;transition:.15s;color:var(--txt)}
+input.f:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(56,214,255,.15)}
+.row{display:flex;gap:8px;margin-top:10px}
+.btn{flex:1;padding:12px;border-radius:14px;background:rgba(45,140,255,.14);border:1px solid var(--line);font-weight:600;font-size:14px;transition:.15s}
+.btn:active{transform:scale(.97)}
+.btn.pri{background:linear-gradient(135deg,#2d8cff,#1b63e8);border-color:transparent;box-shadow:0 6px 22px rgba(45,140,255,.4)}
+.btn.dng{background:rgba(255,90,74,.15);border-color:rgba(255,90,74,.5);color:#ff9a8f}
+
+/* got */
+.got{text-align:center;border-color:var(--c);box-shadow:0 0 30px var(--glow)}
+.got small{color:var(--mut)}
+.got .big{font-size:34px;font-weight:800;margin:6px 0 12px;letter-spacing:.5px;text-shadow:0 0 18px var(--glow)}
+.pop{animation:pop .45s cubic-bezier(.2,1.4,.4,1)}
+@keyframes pop{from{transform:scale(.7);opacity:0}}
+
+/* list */
+.list h3{margin:0 0 10px;font-size:15px}
+.item{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid rgba(80,150,255,.12)}
+.item:first-of-type{border-top:0}
+.item .ip{font-weight:700;font-size:15px;min-width:118px}
+.item .meta{flex:1;min-width:0;font-size:12px;color:var(--mut)}
+.item .meta b{display:block;color:var(--txt);font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item.new{animation:newrow 1.6s}
+@keyframes newrow{0%,40%{background:rgba(56,214,255,.18)}}
+.cp{padding:6px 10px;border-radius:10px;background:rgba(45,140,255,.12);border:1px solid var(--line);font-size:12px}
+.empty{text-align:center;padding:36px 12px;color:var(--mut)}
+.empty h2{color:var(--txt);margin:14px 0 6px}
+.empty img{width:96px;border-radius:24px;box-shadow:0 0 40px var(--glow)}
+
+/* sheet */
+.sheet-wrap{position:fixed;inset:0;background:rgba(1,5,18,.7);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;z-index:20;animation:fade .2s}
+.sheet-wrap[hidden]{display:none}
+@keyframes fade{from{opacity:0}}
+.sheet{width:100%;max-width:560px;max-height:92vh;overflow:auto;background:linear-gradient(#0a1b44,#061230);border:1px solid var(--line);border-bottom:0;border-radius:26px 26px 0 0;padding:20px 18px calc(22px + env(safe-area-inset-bottom));animation:up .3s cubic-bezier(.2,.9,.3,1)}
+@keyframes up{from{transform:translateY(60px);opacity:0}}
+.sheet h3{margin:0 0 14px;font-size:18px}
+.sheet label{display:block;font-size:13px;color:var(--mut);margin:12px 0 6px}
+.sheet .hint{font-size:12px;color:var(--mut);line-height:1.7;margin-top:6px}
+.err{color:#ff9a8f;font-size:13px;margin-top:8px;min-height:18px}
+.sw{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid rgba(80,150,255,.12)}
+.sw input{width:44px;height:24px;accent-color:var(--blue)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translate(-50%,30px);opacity:0;background:#0b2150;border:1px solid var(--cyan);color:#fff;padding:11px 18px;border-radius:16px;font-size:14px;z-index:40;transition:.3s;pointer-events:none;max-width:90vw;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+#toast.show{transform:translate(-50%,0);opacity:1}
+#toast.err{border-color:var(--crit)}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <img src="icon-192.png" alt="">
+    <div>
+      <h1>IP Manager</h1>
+      <div class="sub"><span class="dot" id="dot"></span><span id="stat">...</span></div>
+    </div>
+    <div class="sp"></div>
+    <button class="ico" id="btnInstall" hidden title="تثبيت">⬇</button>
+    <button class="ico" id="btnSound" title="الصوت">🔊</button>
+    <button class="ico" id="btnSet" title="الإعدادات">⚙</button>
+  </header>
+
+  <div class="chips" id="chips"></div>
+
+  <div id="empty" class="card empty" hidden>
+    <img src="icon-512.png" alt="">
+    <h2>مفيش رنج لسه</h2>
+    <div>ضيف أول رنج IP وابدأ التوزيع</div>
+    <div class="row"><button class="btn pri" id="btnFirst">+ رنج جديد</button></div>
+  </div>
+
+  <section id="main" class="card main" data-level="ok" hidden>
+    <div class="rhead">
+      <div style="flex:1;min-width:0">
+        <h2 id="rName"></h2>
+        <div class="span mono" id="rSpan"></div>
+      </div>
+      <span class="badge" id="badge"></span>
+      <button class="ico" id="btnEdit" title="تعديل الرنج">✎</button>
+    </div>
+
+    <div class="ringwrap" id="ringwrap">
+      <svg viewBox="0 0 280 280" aria-hidden="true">
+        <circle class="track" cx="140" cy="140" r="118"/>
+        <circle class="ticks" cx="140" cy="140" r="132"/>
+        <circle class="prog" id="prog" cx="140" cy="140" r="118" transform="rotate(-90 140 140)"/>
+      </svg>
+      <button class="go" id="go">
+        <span class="l1" id="goL1">وزّع الـ IP التالي</span>
+        <span class="l2 mono" id="goIp"></span>
+        <span class="l3" id="goL3"></span>
+      </button>
+      <div id="fx"></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><b id="sUsed">0</b><small>اتوزّع</small></div>
+      <div class="stat"><b id="sLeft">0</b><small>متبقي</small></div>
+      <div class="stat"><b id="sTot">0</b><small>الإجمالي</small></div>
+    </div>
+    <div class="pctbar"><div class="t"><i id="pbar"></i></div><span id="pTxt">0%</span></div>
+
+    <input class="f" id="note" placeholder="اسم الموظف / الجهاز (اختياري)" maxlength="60" autocomplete="off">
+    <div class="row">
+      <button class="btn" id="undo">↶ تراجع عن آخر IP</button>
+      <button class="btn" id="copyAll">📋 نسخ القائمة</button>
+    </div>
+  </section>
+
+  <section id="got" class="card got" hidden>
+    <small>آخر IP اتوزّع</small>
+    <div class="big mono" id="gotIp"></div>
+    <div class="row"><button class="btn pri" id="gotCopy">نسخ الـ IP</button></div>
+  </section>
+
+  <section id="list" class="card list" hidden>
+    <h3>سجل التوزيع</h3>
+    <div id="items"></div>
+  </section>
+</div>
+
+<div class="sheet-wrap" id="wrap" hidden><div class="sheet" id="sheet"></div></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ========= helpers ========= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LS = (k, v) => { if (v === undefined) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } } try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+const ip2int = s => { const m = /^\s*(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\s*$/.exec(s); if (!m) return null; const o = m.slice(1).map(Number); if (o.some(x => x > 255)) return null; return o[0]*16777216 + o[1]*65536 + o[2]*256 + o[3]; };
+const int2ip = n => [Math.floor(n/16777216)%256, Math.floor(n/65536)%256, Math.floor(n/256)%256, n%256].join('.');
+const bad = n => n % 256 === 0 || n % 256 === 255;               // network / broadcast of a /24
+const nextValid = r => { let p = r.p ?? r.s; while (p <= r.e && bad(p)) p++; return p; };
+const totalCache = {};
+const totalOf = r => { const k = r.s + '-' + r.e; if (totalCache[k] != null) return totalCache[k]; let t = 0; for (let i = r.s; i <= r.e; i++) if (!bad(i)) t++; return totalCache[k] = t; };
+const usedOf = r => Object.keys(r.a || {}).length;
+const uid = () => 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+
+let settings = Object.assign({ name: '', team: 'default', db: '', sound: true, vibrate: true, copy: true }, LS('ipm.settings') || {});
+const saveSettings = () => LS('ipm.settings', settings);
+
+/* ========= sound ========= */
+let ac;
+const AC = () => { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); return ac; };
+function tone(f, t = 0, d = .12, type = 'sine', v = .18) {
+  if (!settings.sound) return;
+  try {
+    const c = AC(), o = c.createOscillator(), g = c.createGain(), s = c.currentTime + t;
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(.0001, s); g.gain.exponentialRampToValueAtTime(v, s + .01); g.gain.exponentialRampToValueAtTime(.0001, s + d);
+    o.connect(g).connect(c.destination); o.start(s); o.stop(s + d + .02);
+  } catch {}
+}
+const buzz = p => { if (settings.vibrate && navigator.vibrate) navigator.vibrate(p); };
+const sfx = {
+  click: p => { tone(480 + p * 560, 0, .11); tone(960 + p * 560, .045, .09, 'triangle', .07); buzz(18); },
+  warn: () => { tone(660, 0, .12, 'square', .06); tone(660, .17, .12, 'square', .06); buzz([30, 60, 30]); },
+  full: () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, i * .1, .28, 'sine', .15)); buzz([40, 40, 40, 40, 120]); },
+  err: () => { tone(170, 0, .28, 'sawtooth', .07); buzz([80, 40, 80]); },
+  remote: () => { tone(880, 0, .08, 'sine', .1); tone(1175, .09, .1, 'sine', .1); },
+  undo: () => { tone(520, 0, .08); tone(390, .08, .1); buzz(15); }
+};
+
+/* ========= toast ========= */
+let tT;
+function toast(msg, kind) {
+  const t = $('#toast'); t.textContent = msg; t.className = 'show' + (kind === 'err' ? ' err' : '');
+  clearTimeout(tT); tT = setTimeout(() => t.className = '', 2600);
+}
+async function copy(txt) {
+  try { await navigator.clipboard.writeText(txt); return true; }
+  catch { const a = document.createElement('textarea'); a.value = txt; document.body.appendChild(a); a.select(); let ok = false; try { ok = document.execCommand('copy'); } catch {} a.remove(); return ok; }
+}
+
+/* ========= store (local or Firebase realtime) ========= */
+let online = true, loaded = false, lastLocal = 0;
+const Store = {
+  mode: 'local', ranges: {}, unsubs: [], fb: null, db: null, base: '', cacheKey: '',
+  async connect() {
+    this.unsubs.forEach(u => { try { u(); } catch {} }); this.unsubs = []; loaded = false;
+    if (!settings.db) {
+      this.mode = 'local'; this.ranges = LS('ipm.local') || {}; setStatus('local'); loaded = true; render(); return;
+    }
+    this.mode = 'cloud';
+    this.base = 'teams/' + (settings.team || 'default').replace(/[.#$\[\]\/]/g, '_');
+    this.cacheKey = 'ipm.cache.' + settings.db + this.base;
+    this.ranges = LS(this.cacheKey) || {}; render(); setStatus('connecting');
+    try {
+      if (!this.fb) {
+        const [app, dbm] = await Promise.all([
+          import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js'),
+          import('https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js')
+        ]);
+        this.fb = { ...app, ...dbm };
+      }
+      const f = this.fb;
+      const name = 'ipm-' + settings.db.replace(/\W/g, '').slice(-24);
+      let app; try { app = f.getApp(name); } catch { app = f.initializeApp({ databaseURL: settings.db }, name); }
+      this.db = f.getDatabase(app);
+      const u1 = f.onValue(f.ref(this.db, this.base + '/ranges'), snap => {
+        const v = snap.val() || {};
+        if (loaded) detectRemote(this.ranges, v);
+        this.ranges = v; loaded = true; LS(this.cacheKey, v); render();
+      }, err => setStatus('error', err.message));
+      const u2 = f.onValue(f.ref(this.db, '.info/connected'), s => { online = !!s.val(); setStatus(online ? 'online' : 'offline'); });
+      this.unsubs.push(u1, u2);
+    } catch (e) { setStatus('error', e.message); }
+  },
+  async create(r) {
+    if (this.mode === 'local') { this.ranges[r.id] = r; LS('ipm.local', this.ranges); render(); return; }
+    const f = this.fb; await f.set(f.ref(this.db, this.base + '/ranges/' + r.id), r);
+  },
+  async remove(id) {
+    if (this.mode === 'local') { delete this.ranges[id]; LS('ipm.local', this.ranges); render(); return; }
+    const f = this.fb; await f.remove(f.ref(this.db, this.base + '/ranges/' + id));
+  },
+  async update(id, fn) {
+    if (this.mode === 'local') {
+      const r = this.ranges[id]; if (!r) return;
+      const n = fn(JSON.parse(JSON.stringify(r))); if (n === undefined) return;
+      this.ranges[id] = n; LS('ipm.local', this.ranges); render(); return;
+    }
+    const f = this.fb;
+    await f.runTransaction(f.ref(this.db, this.base + '/ranges/' + id), cur => cur ? fn(cur) : undefined);
+  }
+};
+
+function setStatus(s, extra) {
+  const map = { online: 'متصل — مزامنة مباشرة', offline: 'غير متصل', connecting: 'جاري الاتصال…', local: 'محلي على الجهاز فقط', error: 'خطأ في الاتصال' };
+  $('#dot').className = 'dot ' + s; $('#stat').textContent = map[s] + (s === 'error' && extra ? ' — ' + extra.slice(0, 40) : '');
+}
+
+/* someone else changed something */
+function detectRemote(oldR, newR) {
+  for (const id in newR) {
+    const o = (oldR[id] && oldR[id].a) || {}, n = newR[id].a || {};
+    const added = Object.keys(n).filter(k => !(k in o));
+    if (added.length && Date.now() - lastLocal > 2500) {
+      const last = n[added[added.length - 1]];
+      sfx.remote();
+      toast((last.b || 'مستخدم آخر') + ' وزّع ' + int2ip(+added[added.length - 1]) + (added.length > 1 ? ' (+' + (added.length - 1) + ')' : ''));
+      flashNew = added.map(Number);
+    }
+  }
+}
+let flashNew = [];
+
+/* ========= state / render ========= */
+let selId = LS('ipm.sel'), lastGot = {}, busy = false;
+const sorted = () => Object.entries(Store.ranges).map(([id, r]) => ({ ...r, id })).sort((a, b) => (a.c || 0) - (b.c || 0));
+const cur = () => { const l = sorted(); return l.find(r => r.id === selId) || l[0] || null; };
+const levelOf = r => {
+  const t = totalOf(r), u = usedOf(r), pct = t ? u / t : 1;
+  if (nextValid(r) > r.e) return 'full';
+  return pct >= .95 ? 'crit' : pct >= .75 ? 'warn' : 'ok';
+};
+const lvlColor = { ok: 'var(--blue)', warn: 'var(--warn)', crit: 'var(--crit)', full: 'var(--full)' };
+const lvlText = { ok: 'متاح', warn: 'قرّب يخلص', crit: 'شبه ممتلئ', full: 'ممتلئ' };
+let prevUsed = null, prevLevel = null, prevId = null;
+
+function render() {
+  const list = sorted(), r = cur();
+  $('#empty').hidden = !!list.length || !loaded && Store.mode === 'cloud' && !list.length && false;
+  $('#empty').hidden = list.length > 0;
+  // chips
+  $('#chips').innerHTML = list.map(x => {
+    const t = totalOf(x), u = usedOf(x), p = t ? Math.round(u / t * 100) : 100, l = levelOf(x);
+    return `<button class="chip ${r && r.id === x.id ? 'sel' : ''}" data-id="${x.id}" style="--cc:${lvlColor[l]}"><b>${esc(x.n)}</b><small>${u}/${t} · ${p}%</small><div class="bar"><i style="width:${p}%"></i></div></button>`;
+  }).join('') + (list.length ? '<button class="chip add" id="chipAdd">+</button>' : '');
+  $('#main').hidden = $('#list').hidden = !r;
+  if (!r) { $('#got').hidden = true; return; }
+  selId = r.id;
+  const t = totalOf(r), u = usedOf(r), left = Math.max(0, t - u), pct = t ? u / t : 1, lvl = levelOf(r), full = lvl === 'full';
+  const m = $('#main'); m.dataset.level = lvl;
+  $('#rName').textContent = r.n;
+  $('#rSpan').textContent = int2ip(r.s) + '  →  ' + int2ip(r.e);
+  $('#badge').textContent = lvlText[lvl];
+  $('#prog').style.strokeDashoffset = 741.4 * (1 - Math.min(1, pct));
+  const go = $('#go'); go.disabled = full;
+  $('#goL1').textContent = full ? 'الرنج اكتمل ✓' : 'وزّع الـ IP التالي';
+  $('#goIp').textContent = full ? '' : int2ip(nextValid(r));
+  $('#goL3').textContent = full ? 'مفيش عناوين متاحة' : 'اضغط للتوزيع';
+  const setNum = (el, v) => { if (el.textContent != v) { el.textContent = v; el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } };
+  setNum($('#sUsed'), u); setNum($('#sLeft'), left); $('#sTot').textContent = t;
+  $('#pbar').style.width = (pct * 100) + '%'; $('#pTxt').textContent = Math.round(pct * 100) + '%';
+  $('#undo').disabled = !u; $('#undo').style.opacity = u ? 1 : .4;
+  // got panel
+  const g = lastGot[r.id];
+  $('#got').hidden = !g;
+  if (g) $('#gotIp').textContent = g;
+  // list
+  const keys = Object.keys(r.a || {}).map(Number).sort((a, b) => b - a).slice(0, 60);
+  $('#items').innerHTML = keys.length ? keys.map(k => {
+    const a = r.a[k], tm = a.t ? new Date(a.t).toLocaleString('ar-EG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+    return `<div class="item ${flashNew.includes(k) ? 'new' : ''}"><span class="ip mono">${int2ip(k)}</span><div class="meta"><b>${esc(a.n) || '—'}</b>${esc(a.b || '')}${a.b ? ' · ' : ''}${tm}</div><button class="cp" data-cp="${int2ip(k)}">نسخ</button></div>`;
+  }).join('') : '<div class="empty" style="padding:14px">لسه مفيش توزيع</div>';
+  flashNew = [];
+  // sounds for state transitions caused by remote or local
+  prevUsed = u; prevLevel = lvl; prevId = r.id;
+}
+
+/* ========= assign / undo ========= */
+async function assign() {
+  const r = cur(); if (!r || busy) return;
+  if (Store.mode === 'cloud' && !online) { toast('مفيش اتصال — مش هينفع التوزيع عشان منكررش IP', 'err'); sfx.err(); return; }
+  busy = true; lastLocal = Date.now();
+  const note = $('#note').value.trim(), by = settings.name.trim();
+  const before = levelOf(r), t = totalOf(r);
+  let res = null;
+  try {
+    await Store.update(r.id, x => {
+      const p = nextValid(x); res = null;
+      if (p > x.e) { res = { full: true }; return undefined; }
+      x.a = x.a || {}; x.a[p] = { n: note, t: Date.now(), b: by }; x.p = p + 1; res = { ip: p };
+      return x;
+    });
+  } catch (e) { toast('حصل خطأ: ' + e.message, 'err'); sfx.err(); busy = false; return; }
+  busy = false;
+  if (!res) return;
+  if (res.full) { $('#ringwrap').classList.remove('shake'); void $('#ringwrap').offsetWidth; $('#ringwrap').classList.add('shake'); sfx.err(); toast('الرنج اكتمل', 'err'); return; }
+  const ip = int2ip(res.ip), after = levelOf(Store.ranges[r.id] || r), pct = (usedOf(Store.ranges[r.id] || r)) / t;
+  lastGot[r.id] = ip; render();
+  $('#note').value = '';
+  if (after === 'full') { sfx.full(); burst(34); toast('🎉 الرنج اكتمل بالكامل'); }
+  else if (after === 'crit' && before !== 'crit') { sfx.warn(); toast('⚠ الرنج قرّب يخلص — فاضل ' + (t - usedOf(Store.ranges[r.id] || r)), 'err'); }
+  else if (after === 'warn' && before === 'ok') { sfx.warn(); toast('وصلت 75% من الرنج'); }
+  else sfx.click(pct);
+  plus(); ripple(); burst(10);
+  const g = $('#got'); g.classList.remove('pop'); void g.offsetWidth; g.classList.add('pop');
+  if (settings.copy) copy(ip).then(ok => { if (ok && after !== 'full' && after === before) toast('اتنسخ ' + ip); });
+}
+async function undo() {
+  const r = cur(); if (!r) return;
+  if (Store.mode === 'cloud' && !online) { toast('مفيش اتصال', 'err'); return; }
+  const keys = Object.keys(r.a || {}).map(Number); if (!keys.length) return;
+  const last = Math.max(...keys);
+  openSheet(`<h3>تراجع عن آخر توزيع؟</h3><p style="margin:0 0 6px">هيتلغي <b class="mono">${int2ip(last)}</b> ويرجع متاح تاني.</p><div class="row"><button class="btn" data-close>لأ</button><button class="btn pri" id="okUndo">أيوه، تراجع</button></div>`);
+  $('#okUndo').onclick = async () => {
+    closeSheet(); lastLocal = Date.now();
+    try {
+      await Store.update(r.id, x => {
+        const ks = Object.keys(x.a || {}).map(Number); if (!ks.length) return undefined;
+        const m = Math.max(...ks); delete x.a[m]; x.p = m; return x;
+      });
+      delete lastGot[r.id]; render(); sfx.undo(); toast('اتلغى ' + int2ip(last));
+    } catch (e) { toast('حصل خطأ: ' + e.message, 'err'); }
+  };
+}
+
+/* ========= effects ========= */
+function ripple() {
+  const g = $('#go'), s = document.createElement('span'), sz = g.clientWidth / 3;
+  s.className = 'rip'; s.style.cssText = `width:${sz}px;height:${sz}px;left:${g.clientWidth / 2 - sz / 2}px;top:${g.clientHeight / 2 - sz / 2}px`;
+  g.appendChild(s); setTimeout(() => s.remove(), 650);
+}
+function plus() { const e = document.createElement('div'); e.className = 'plus'; e.textContent = '+1'; $('#fx').appendChild(e); setTimeout(() => e.remove(), 900); }
+function burst(n) {
+  const fx = $('#fx');
+  for (let i = 0; i < n; i++) {
+    const p = document.createElement('i'), a = Math.random() * Math.PI * 2, d = 90 + Math.random() * 110;
+    p.className = 'pt'; p.style.setProperty('--dx', Math.cos(a) * d + 'px'); p.style.setProperty('--dy', Math.sin(a) * d + 'px');
+    p.style.width = p.style.height = (4 + Math.random() * 6) + 'px';
+    fx.appendChild(p); setTimeout(() => p.remove(), 1000);
+  }
+}
+
+/* ========= sheets ========= */
+const wrap = $('#wrap'), sheet = $('#sheet');
+function openSheet(html) { sheet.innerHTML = html; wrap.hidden = false; }
+function closeSheet() { wrap.hidden = true; sheet.innerHTML = ''; }
+wrap.addEventListener('click', e => { if (e.target === wrap || e.target.closest('[data-close]')) closeSheet(); });
+
+function rangeSheet(r) {
+  const edit = !!r;
+  openSheet(`<h3>${edit ? 'تعديل الرنج' : 'رنج جديد'}</h3>
+  <label>اسم الرنج</label><input class="f" id="fN" placeholder="مثال: طابعات الدور الثاني" maxlength="40" value="${edit ? esc(r.n) : ''}">
+  <div class="g2"><div><label>من IP</label><input class="f mono" id="fS" inputmode="decimal" placeholder="192.168.1.10" value="${edit ? int2ip(r.s) : ''}"></div>
+  <div><label>إلى IP</label><input class="f mono" id="fE" inputmode="decimal" placeholder="192.168.1.50" value="${edit ? int2ip(r.e) : ''}"></div></div>
+  <div class="hint" id="fInfo">العناوين اللي بتنتهي بـ .0 و .255 بتتخطى تلقائياً.</div>
+  <div class="err" id="fErr"></div>
+  <div class="row"><button class="btn" data-close>إلغاء</button><button class="btn pri" id="fOk">${edit ? 'حفظ' : 'إضافة'}</button></div>
+  ${edit ? '<div class="row"><button class="btn" id="fReset">إعادة تصفير التوزيع</button><button class="btn dng" id="fDel">حذف الرنج</button></div>' : ''}`);
+  const calc = () => {
+    const s = ip2int($('#fS').value), e = ip2int($('#fE').value);
+    if (s != null && e != null && e >= s && e - s < 65536) $('#fInfo').textContent = 'عدد العناوين المتاحة: ' + totalOf({ s, e });
+  };
+  $('#fS').oninput = $('#fE').oninput = calc; calc();
+  $('#fOk').onclick = async () => {
+    const n = $('#fN').value.trim(), s = ip2int($('#fS').value), e = ip2int($('#fE').value), er = $('#fErr');
+    if (!n) return er.textContent = 'اكتب اسم للرنج';
+    if (s == null || e == null) return er.textContent = 'اكتب IP صحيح بالشكل 192.168.1.10';
+    if (e < s) return er.textContent = 'نهاية الرنج لازم تكون أكبر من بدايته';
+    if (e - s >= 65536) return er.textContent = 'الرنج كبير أوي (الحد الأقصى 65,536 عنوان)';
+    closeSheet();
+    try {
+      if (edit) await Store.update(r.id, x => { x.n = n; x.s = s; x.e = e; x.p = Math.max(x.p ?? s, s); return x; });
+      else { const id = uid(); await Store.create({ id, n, s, e, p: s, c: Date.now() }); selId = id; LS('ipm.sel', id); render(); }
+      toast(edit ? 'اتحفظ التعديل' : 'اتضاف الرنج');
+    } catch (x) { toast('حصل خطأ: ' + x.message, 'err'); }
+  };
+  if (edit) {
+    $('#fReset').onclick = () => confirmSheet('تصفير التوزيع؟', 'هيتمسح سجل كل العناوين الموزعة ويبدأ الرنج من الأول.', async () => {
+      await Store.update(r.id, x => { x.a = null; x.p = x.s; return x; }); delete lastGot[r.id]; render(); toast('اتصفّر الرنج');
+    });
+    $('#fDel').onclick = () => confirmSheet('حذف الرنج؟', 'هيتحذف من عند كل المستخدمين ومش هينفع ترجعه.', async () => { await Store.remove(r.id); toast('اتحذف الرنج'); });
+  }
+}
+function confirmSheet(title, msg, fn) {
+  openSheet(`<h3>${title}</h3><p style="margin:0 0 6px;color:var(--mut)">${msg}</p><div class="row"><button class="btn" data-close>لأ</button><button class="btn dng" id="cOk">تأكيد</button></div>`);
+  $('#cOk').onclick = async () => { closeSheet(); try { await fn(); } catch (e) { toast('حصل خطأ: ' + e.message, 'err'); } };
+}
+function settingsSheet() {
+  openSheet(`<h3>الإعدادات</h3>
+  <label>اسمك (بيظهر للباقي لما توزّع IP)</label><input class="f" id="sName" maxlength="24" value="${esc(settings.name)}" placeholder="مثال: أحمد">
+  <label>كود الفريق</label><input class="f mono" id="sTeam" value="${esc(settings.team)}" placeholder="default">
+  <div class="hint">كل اللي بيكتبوا نفس الكود بيشوفوا نفس الرنجات.</div>
+  <label>رابط قاعدة بيانات Firebase (للمزامنة المباشرة)</label>
+  <input class="f mono" id="sDb" inputmode="url" value="${esc(settings.db)}" placeholder="https://xxxx-default-rtdb.firebaseio.com">
+  <div class="hint">سيبه فاضي لو عاوز تشتغل محلي على الجهاز بس.</div>
+  <div class="sw"><span>صوت</span><input type="checkbox" id="sSnd" ${settings.sound ? 'checked' : ''}></div>
+  <div class="sw"><span>اهتزاز</span><input type="checkbox" id="sVib" ${settings.vibrate ? 'checked' : ''}></div>
+  <div class="sw"><span>نسخ الـ IP تلقائياً بعد التوزيع</span><input type="checkbox" id="sCp" ${settings.copy ? 'checked' : ''}></div>
+  <div class="err" id="sErr"></div>
+  <div class="row"><button class="btn" data-close>إلغاء</button><button class="btn pri" id="sOk">حفظ</button></div>`);
+  $('#sOk').onclick = () => {
+    let db = $('#sDb').value.trim().replace(/\/+$/, '');
+    if (db && !/^https:\/\/[\w.-]+\.(firebaseio\.com|firebasedatabase\.app)$/.test(db)) return $('#sErr').textContent = 'الرابط لازم يبقى بالشكل https://xxxx.firebaseio.com أو https://xxxx.firebasedatabase.app';
+    const changed = db !== settings.db || ($('#sTeam').value.trim() || 'default') !== settings.team;
+    settings = { name: $('#sName').value.trim(), team: $('#sTeam').value.trim() || 'default', db, sound: $('#sSnd').checked, vibrate: $('#sVib').checked, copy: $('#sCp').checked };
+    saveSettings(); syncSoundIcon(); closeSheet(); toast('اتحفظت الإعدادات'); if (changed) Store.connect();
+  };
+}
+const syncSoundIcon = () => { $('#btnSound').textContent = settings.sound ? '🔊' : '🔇'; $('#btnSound').classList.toggle('off', !settings.sound); };
+
+/* ========= events ========= */
+$('#go').addEventListener('click', assign);
+$('#note').addEventListener('keydown', e => { if (e.key === 'Enter') assign(); });
+$('#undo').onclick = undo;
+$('#btnEdit').onclick = () => rangeSheet(cur());
+$('#btnFirst').onclick = () => rangeSheet(null);
+$('#btnSet').onclick = settingsSheet;
+$('#btnSound').onclick = () => { settings.sound = !settings.sound; saveSettings(); syncSoundIcon(); if (settings.sound) sfx.click(.3); };
+$('#gotCopy').onclick = async () => { const r = cur(); if (r && lastGot[r.id] && await copy(lastGot[r.id])) toast('اتنسخ ' + lastGot[r.id]); };
+$('#copyAll').onclick = async () => {
+  const r = cur(); if (!r) return;
+  const lines = Object.keys(r.a || {}).map(Number).sort((a, b) => a - b).map(k => int2ip(k) + '\t' + (r.a[k].n || '') + (r.a[k].b ? '\t' + r.a[k].b : ''));
+  if (!lines.length) return toast('مفيش حاجة تتنسخ');
+  if (await copy(lines.join('\n'))) toast('اتنسخت القائمة (' + lines.length + ')');
+};
+document.addEventListener('click', e => {
+  const c = e.target.closest('.chip');
+  if (c && c.dataset.id) { selId = c.dataset.id; LS('ipm.sel', selId); render(); sfx.click(.1); return; }
+  if (e.target.closest('#chipAdd')) return rangeSheet(null);
+  const cp = e.target.closest('[data-cp]');
+  if (cp) copy(cp.dataset.cp).then(ok => ok && toast('اتنسخ ' + cp.dataset.cp));
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+
+/* install + service worker */
+let dip; window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); dip = e; $('#btnInstall').hidden = false; });
+$('#btnInstall').onclick = async () => { if (!dip) return; dip.prompt(); await dip.userChoice; dip = null; $('#btnInstall').hidden = true; };
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+
+syncSoundIcon();
+Store.connect();
+</script>
+</body>
+</html>

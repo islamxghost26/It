@@ -1,0 +1,18 @@
+{
+  "name": "IP Manager — توزيع عناوين IP",
+  "short_name": "IP Manager",
+  "description": "توزيع عناوين IP الثابتة لفريق الـ IT مع مزامنة مباشرة",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "dir": "rtl",
+  "lang": "ar",
+  "background_color": "#030a1f",
+  "theme_color": "#030a1f",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
