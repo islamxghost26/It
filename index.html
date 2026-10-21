@@ -227,7 +227,7 @@ const totalOf = r => { const k = r.s + '-' + r.e; if (totalCache[k] != null) ret
 const usedOf = r => Object.keys(r.a || {}).length;
 const uid = () => 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 
-const DEFAULT_DB = 'https://ip-manager-18f8c-default-rtdb.europe-west1.firebasedatabase.app', APP_V = '2.1';
+const DEFAULT_DB = 'https://ip-manager-18f8c-default-rtdb.europe-west1.firebasedatabase.app', APP_V = '2.2';
 const I = n => `<svg class="i"><use href="#i-${n}"/></svg>`;
 let settings = Object.assign({ name: '', team: 'default', db: DEFAULT_DB, localOnly: false, sound: true, vibrate: true, copy: true }, LS('ipm.settings') || {});
 if (!settings.db && !settings.localOnly) settings.db = DEFAULT_DB;
@@ -624,7 +624,7 @@ function reserveSheet() {
 }
 $('#btnRes').onclick = reserveSheet;
 
-/* ========= name gate / log / who =========
+/* ========= name gate / log / who ========= */
 const ago = t => new Date(t).toLocaleString('ar-EG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const syncWho = () => $('#whoTxt').textContent = settings.name || '—';
 function nameSheet() {
