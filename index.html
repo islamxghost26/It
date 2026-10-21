@@ -121,6 +121,12 @@ header h1{font-size:21px;margin:0;font-weight:800}
 @media (max-width:400px){.pill span{display:none}.pill{padding:0 11px}}
 @media (display-mode:standalone){#btnInstall{display:none!important}}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+.ipf{display:flex;align-items:center;gap:6px;direction:ltr}
+.ipf input{flex:1;min-width:0;width:100%;text-align:center;font:800 23px ui-monospace,Menlo,Consolas,monospace;padding:14px 0;border-radius:14px;background:rgba(3,10,31,.7);border:1px solid var(--line);color:var(--txt);outline:none;transition:border-color .15s,box-shadow .15s}
+.ipf input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(63,220,255,.18)}
+.ipf i{font-style:normal;font-weight:800;font-size:26px;color:var(--cyan)}
+.ipst{min-height:26px;font-size:15px;font-weight:700;margin-top:10px}.ipst.ok{color:var(--full)}.ipst.no{color:#ffb0a6}
+.tag{font-style:normal;font-size:11px;padding:1px 8px;border-radius:10px;background:rgba(255,176,32,.16);color:var(--warn);border:1px solid var(--warn);margin-inline-end:6px;font-weight:700}
 </style>
 </head>
 <body>
@@ -184,7 +190,8 @@ header h1{font-size:21px;margin:0;font-weight:800}
 
     <input class="f" id="note" placeholder="اسم الموظف / الجهاز (اختياري)" maxlength="60" autocomplete="off">
     <div class="row">
-      <button class="btn" id="undo"><svg class="i "><use href="#i-undo"/></svg>تراجع عن آخر IP</button>
+      <button class="btn pri" id="btnRes"><svg class="i"><use href="#i-plus"/></svg>حجز IP محدد</button></div>
+    <div class="row"><button class="btn" id="undo"><svg class="i "><use href="#i-undo"/></svg>تراجع عن آخر IP</button>
       <button class="btn" id="copyAll"><svg class="i "><use href="#i-copy"/></svg>نسخ القائمة</button>
     </div>
   </section>
@@ -213,13 +220,14 @@ const LS = (k, v) => { if (v === undefined) { try { return JSON.parse(localStora
 const ip2int = s => { const m = /^\s*(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\s*$/.exec(s); if (!m) return null; const o = m.slice(1).map(Number); if (o.some(x => x > 255)) return null; return o[0]*16777216 + o[1]*65536 + o[2]*256 + o[3]; };
 const int2ip = n => [Math.floor(n/16777216)%256, Math.floor(n/65536)%256, Math.floor(n/256)%256, n%256].join('.');
 const bad = n => n % 256 === 0 || n % 256 === 255;               // network / broadcast of a /24
-const nextValid = r => { let p = r.p ?? r.s; while (p <= r.e && bad(p)) p++; return p; };
+const nextValid = r => { let p = r.p ?? r.s; while (p <= r.e && (bad(p) || (r.a && r.a[p]))) p++; return p; };
+const lastKeyOf = a => { let b = null; for (const k in a) if (b == null || (a[k].t || 0) >= (a[b].t || 0)) b = k; return +b; };
 const totalCache = {};
 const totalOf = r => { const k = r.s + '-' + r.e; if (totalCache[k] != null) return totalCache[k]; let t = 0; for (let i = r.s; i <= r.e; i++) if (!bad(i)) t++; return totalCache[k] = t; };
 const usedOf = r => Object.keys(r.a || {}).length;
 const uid = () => 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 
-const DEFAULT_DB = 'https://ip-manager-18f8c-default-rtdb.europe-west1.firebasedatabase.app', APP_V = '2.0';
+const DEFAULT_DB = 'https://ip-manager-18f8c-default-rtdb.europe-west1.firebasedatabase.app', APP_V = '2.1';
 const I = n => `<svg class="i"><use href="#i-${n}"/></svg>`;
 let settings = Object.assign({ name: '', team: 'default', db: DEFAULT_DB, localOnly: false, sound: true, vibrate: true, copy: true }, LS('ipm.settings') || {});
 if (!settings.db && !settings.localOnly) settings.db = DEFAULT_DB;
@@ -387,7 +395,7 @@ function render() {
   const keys = Object.keys(r.a || {}).map(Number).sort((a, b) => b - a).slice(0, 60);
   $('#items').innerHTML = keys.length ? keys.map(k => {
     const a = r.a[k], tm = a.t ? new Date(a.t).toLocaleString('ar-EG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
-    return `<div class="item ${flashNew.includes(k) ? 'new' : ''}"><span class="av">${esc((a.b || a.n || '?')[0])}</span><div class="ipc"><span class="ip mono">${int2ip(k)}</span><span class="nm">${esc(a.n) || '—'}</span><small>${esc(a.b || '')}${a.b ? ' · ' : ''}${tm}</small></div><button class="cp" data-cp="${int2ip(k)}">${I('copy')}</button></div>`;
+    return `<div class="item ${flashNew.includes(k) ? 'new' : ''}"><span class="av">${esc((a.b || a.n || '?')[0])}</span><div class="ipc"><span class="ip mono">${int2ip(k)}</span><span class="nm">${a.m ? '<em class="tag">محجوز</em>' : ''}${esc(a.n) || '—'}</span><small>${esc(a.b || '')}${a.b ? ' · ' : ''}${tm}</small></div><button class="cp" data-cp="${int2ip(k)}">${I('copy')}</button></div>`;
   }).join('') : '<div class="empty" style="padding:14px">لسه مفيش توزيع</div>';
   flashNew = [];
   // sounds for state transitions caused by remote or local
@@ -428,14 +436,14 @@ async function undo() {
   const r = cur(); if (!r) return;
   if (Store.mode === 'cloud' && !online) { toast('مفيش اتصال', 'err'); return; }
   const keys = Object.keys(r.a || {}).map(Number); if (!keys.length) return;
-  const last = Math.max(...keys);
+  const last = lastKeyOf(r.a);
   openSheet(`<h3>تراجع عن آخر توزيع؟</h3><p style="margin:0 0 6px">هيتلغي <b class="mono">${int2ip(last)}</b> ويرجع متاح تاني.</p><div class="row"><button class="btn" data-close>لأ</button><button class="btn pri" id="okUndo">أيوه، تراجع</button></div>`);
   $('#okUndo').onclick = async () => {
     closeSheet(); lastLocal = Date.now();
     try {
       await Store.update(r.id, x => {
         const ks = Object.keys(x.a || {}).map(Number); if (!ks.length) return undefined;
-        const m = Math.max(...ks); delete x.a[m]; x.p = m; return x;
+        const m = lastKeyOf(x.a); delete x.a[m]; x.p = Math.min(x.p ?? m, m); return x;
       });
       delete lastGot[r.id]; render(); sfx.undo(); Store.log('تراجع عن ' + int2ip(last) + ' — ' + r.n); toast('اتلغى ' + int2ip(last));
     } catch (e) { toast('حصل خطأ: ' + e.message, 'err'); }
@@ -461,12 +469,14 @@ function rangeSheet(r) {
   const edit = !!r;
   openSheet(`<h3>${edit ? 'تعديل الرنج' : 'رنج جديد'}</h3>
   <label>اسم الرنج</label><input class="f" id="fN" placeholder="مثال: طابعات الدور الثاني" maxlength="40" value="${edit ? esc(r.n) : ''}">
-  <div class="g2"><div><label>من IP</label><input class="f mono" id="fS" inputmode="decimal" placeholder="192.168.1.10" value="${edit ? int2ip(r.s) : ''}"></div>
-  <div><label>إلى IP</label><input class="f mono" id="fE" inputmode="decimal" placeholder="192.168.1.50" value="${edit ? int2ip(r.e) : ''}"></div></div>
+  <div class="g2"><div><label>من IP</label>${ipField('fS', edit ? int2ip(r.s) : '')}</div>
+  <div><label>إلى IP</label>${ipField('fE', edit ? int2ip(r.e) : '')}</div></div>
   <div class="hint" id="fInfo">العناوين اللي بتنتهي بـ .0 و .255 بتتخطى تلقائياً.</div>
   <div class="err" id="fErr"></div>
   <div class="row"><button class="btn" data-close>إلغاء</button><button class="btn pri" id="fOk">${edit ? 'حفظ' : 'إضافة'}</button></div>
   ${edit ? '<div class="row"><button class="btn" id="fReset">إعادة تصفير التوزيع</button><button class="btn dng" id="fDel">حذف الرنج</button></div>' : ''}`);
+  ipWire('#fS'); ipWire('#fE');
+  $('#fS').addEventListener('input', () => { const s = $('#fS').boxes, e = $('#fE').boxes; if (s.slice(0, 3).every(b => b.value) && !e.slice(0, 3).some(b => b.value)) e.slice(0, 3).forEach((b, i) => b.value = s[i].value); });
   const calc = () => {
     const s = ip2int($('#fS').value), e = ip2int($('#fE').value);
     if (s != null && e != null && e >= s && e - s < 65536) $('#fInfo').textContent = 'عدد العناوين المتاحة: ' + totalOf({ s, e });
@@ -550,7 +560,71 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet()
 
 /* install + service worker */
 
-/* ========= name gate / log / who ========= */
+/* ========= smart IP boxes ========= */
+function ipField(id, val) {
+  const p = (val || '').split('.').concat('', '', '', '').slice(0, 4);
+  return `<div class="ipf" id="${id}">` + p.map(v => `<input inputmode="numeric" maxlength="3" autocomplete="off" value="${esc(v)}">`).join('<i>.</i>') + '</div>';
+}
+function ipWire(sel) {
+  const el = $(sel), bx = el.boxes = [...el.querySelectorAll('input')];
+  Object.defineProperty(el, 'value', { get: () => { const v = bx.map(b => b.value); return v.every(x => x === '') ? '' : v.join('.'); } });
+  const go = i => { if (bx[i]) { bx[i].focus(); bx[i].select(); } };
+  const fire = () => el.dispatchEvent(new Event('input', { bubbles: true }));
+  bx.forEach((b, i) => {
+    b.addEventListener('input', () => {
+      const raw = b.value; let v = raw.replace(/\D/g, '').slice(0, 3);
+      if (v !== '' && +v > 255) v = '255';
+      b.value = v;
+      if (v && (/\D/.test(raw) || v.length === 3 || +v > 25 || v === '0')) go(i + 1);
+    });
+    b.addEventListener('keydown', e => {
+      if (['.', ' ', ',', '/', '،', 'Decimal'].includes(e.key)) { e.preventDefault(); if (b.value) go(i + 1); }
+      else if (e.key === 'Backspace' && !b.value && i) { e.preventDefault(); bx[i - 1].focus(); }
+      else if (e.key === 'Enter') { b.blur(); sheet.querySelector('.btn.pri')?.click(); }
+    });
+    b.addEventListener('focus', () => b.select());
+    b.addEventListener('paste', e => {
+      const m = /(\d{1,3})\D+(\d{1,3})\D+(\d{1,3})\D+(\d{1,3})/.exec((e.clipboardData || window.clipboardData).getData('text'));
+      if (m) { e.preventDefault(); bx.forEach((x, j) => x.value = Math.min(255, +m[j + 1])); bx[3].focus(); fire(); }
+    });
+  });
+}
+
+/* ========= manual reserve ========= */
+function reserveSheet() {
+  const r = cur(); if (!r) return;
+  openSheet(`<h3>حجز IP محدد</h3><div class="hint" style="margin:-6px 0 12px">الرنج: <span class="mono">${int2ip(r.s)} → ${int2ip(r.e)}</span><br>اكتب آخر خانة بس، أو الصق عنوان كامل. العداد هيتخطى العنوان ده لما يوصله.</div>${ipField('rIp', int2ip(r.s).split('.').slice(0, 3).join('.') + '.')}<div class="ipst" id="rSt"></div><label>اسم الموظف / الجهاز</label><input class="f" id="rNote" maxlength="60" autocomplete="off"><div class="err" id="rErr"></div><div class="row"><button class="btn" data-close>إلغاء</button><button class="btn pri" id="rOk">${I('plus')}حجز</button></div>`);
+  ipWire('#rIp'); $('#rIp').boxes[3].focus();
+  const check = () => {
+    const n = ip2int($('#rIp').value), st = $('#rSt'); let m = '', c = '';
+    if (n != null) {
+      const cr = Store.ranges[r.id] || r;
+      if (n < cr.s || n > cr.e) { m = 'خارج الرنج'; c = 'no'; }
+      else if (bad(n)) { m = 'عنوان شبكة / برودكاست — مينفعش'; c = 'no'; }
+      else if (cr.a && cr.a[n]) { m = 'محجوز بالفعل' + (cr.a[n].n ? ': ' + cr.a[n].n : ''); c = 'no'; }
+      else { m = 'متاح ✓'; c = 'ok'; }
+    }
+    st.textContent = m; st.className = 'ipst ' + c; return c === 'ok' ? n : null;
+  };
+  $('#rIp').addEventListener('input', check); check();
+  $('#rOk').onclick = async () => {
+    const n = check(); if (n == null) return $('#rErr').textContent = 'اكتب IP صحيح ومتاح داخل الرنج';
+    if (Store.mode === 'cloud' && !online) return $('#rErr').textContent = 'مفيش اتصال';
+    const note = $('#rNote').value.trim(); let res = null; lastLocal = Date.now(); closeSheet();
+    try {
+      await Store.update(r.id, x => {
+        x.a = x.a || {}; if (x.a[n]) { res = { dup: x.a[n] }; return undefined; }
+        x.a[n] = { n: note, t: Date.now(), b: settings.name, m: 1 }; res = { ok: 1 }; return x;
+      });
+    } catch (e) { return toast('حصل خطأ: ' + e.message, 'err'); }
+    const ip = int2ip(n);
+    if (res && res.ok) { lastGot[r.id] = ip; render(); Store.log('حجز ' + ip + ' — ' + r.n); sfx.click(.5); burst(10); toast('اتحجز ' + ip); }
+    else { sfx.err(); toast(ip + ' اتحجز قبل كده', 'err'); }
+  };
+}
+$('#btnRes').onclick = reserveSheet;
+
+/* ========= name gate / log / who =========
 const ago = t => new Date(t).toLocaleString('ar-EG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const syncWho = () => $('#whoTxt').textContent = settings.name || '—';
 function nameSheet() {
