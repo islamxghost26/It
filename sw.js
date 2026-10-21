@@ -1,7 +1,7 @@
-const V = 'ipm-v1';
+const V = 'ipm-v2.0';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(V).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))));
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim()));
@@ -24,3 +24,4 @@ self.addEventListener('fetch', e => {
     })
   );
 });
+self.addEventListener('message', e => { if (e.data === 'SKIP') self.skipWaiting(); });
